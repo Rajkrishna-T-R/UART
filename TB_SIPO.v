@@ -22,15 +22,17 @@
 
 module Tb_SIPO;
 
-wire [7:0]Par_data_out;
-reg clk,clr_bar,Ser_data_in,load;
+wire [7:0]Parallel_data_out;
+reg clk,clr_bar,Ser_data_in,load,en_data_out;
 
 
-SIPO_register uut(.clr_bar(clr_bar),.clk(clk),.Ser_data_in(Ser_data_in),.load(load),.Par_data_out(Par_data_out));
+SIPO_register uut(.clr_bar(clr_bar),.en_data_out(en_data_out),.clk(clk),.Ser_data_in(Ser_data_in),.load(load),.Parallel_data_out(Parallel_data_out));
 
 initial     
 
         begin
+            
+            en_data_out=1'b0;
             
             clk=1'b0;
             
@@ -90,6 +92,9 @@ initial
         
         Ser_data_in=1'b1;
         #10;
+        
+        en_data_out=1'b1;
+        #5;
         
         load=0;
         #5;
