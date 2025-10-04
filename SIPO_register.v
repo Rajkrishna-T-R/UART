@@ -1,14 +1,19 @@
 
-
-module SIPO_register(Ser_data_in, clk,load,clr_bar,Par_data_out);
+module SIPO_register(Ser_data_in, clk,load,clr_bar,Parallel_data_out,en_data_out);
 
     parameter N = 8;
     
     input Ser_data_in;
+    input en_data_out;
     input clk;
     input clr_bar;
     input load;
-    output reg [N-1:0]Par_data_out;
+    
+    output [7:0]Parallel_data_out;
+    
+     reg [N-1:0]Par_data_out;
+     
+     assign Parallel_data_out=en_data_out?Par_data_out:{N{1'b0}};
     
     always@(posedge clk or negedge clr_bar)
         
@@ -18,28 +23,21 @@ module SIPO_register(Ser_data_in, clk,load,clr_bar,Par_data_out);
                 
                 begin
                     
-                    Par_data_out<=8'b0;
+                    Par_data_out<={N{1'b0}};
                     
                 end
                 
-                
-           else if(load==1'b1 && clr_bar==1'b0)
+             
+             else if(load==1'b1)
+                 
                  
                  begin  
-                    
-                    Par_data_out<=8'b0;
-                    
-                  end
-            
-                
-             else if(load==1'b1 && clr_bar==1'b1)
+                  
+                            Par_data_out<={Ser_data_in,Par_data_out[N-1:1]};
+                        
+                 end
                  
-                 begin  
-                    
-                    Par_data_out<={Ser_data_in,Par_data_out[7:1]};
-                    
-                  end
-              else
+             else
               
                 begin
                     
