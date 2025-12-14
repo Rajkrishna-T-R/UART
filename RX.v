@@ -45,7 +45,7 @@ module Rx_module(
                     input wire Rx_serial,              // RX_serial line 
                     input wire MASTER_RST_BAR,         // reset everything
                     input wire rdy_clr,              // Clear the data ready flag
-                    output wire data_rdy_flag,         // data ready indication flag
+              
                     output reg[7:0] data_out,          // Data output
                     output reg stop_bit_detc           // Stop bit detected
 
@@ -288,6 +288,11 @@ localparam  num_ff_Rx_en= $clog2(Rx_en_count+1); // number of flip flops needed
                                                         sample_count<=0;        // sample count
 
                                                         stop_bit_detc<=1'b1;    // stop bit detected
+                                                        
+                                                         data_out<=data_frm;   // Pass the data byte sampled to the data_out reg
+
+                                                         data_rdy<=1'b1;       // Enable the data ready flag
+
 
                                                         
 
@@ -319,10 +324,6 @@ localparam  num_ff_Rx_en= $clog2(Rx_en_count+1); // number of flip flops needed
                                 begin
 
                                     curr_state<=IDLE_ST;  // Go to IDLE state 
-
-                                    data_out<=data_frm;   // Pass the data byte sampled to the data_out reg
-
-                                    data_rdy<=1'b1;       // Enable the data ready flag
 
                                     data_frm<=8'b0;       // Data frame reset
 
