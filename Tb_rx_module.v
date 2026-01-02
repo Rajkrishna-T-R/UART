@@ -166,7 +166,7 @@ initial
                 begin
                     Run_rx(j);
                     result(j);
-                    #(in_delay);
+                    #(15*clock_period);
                 end
              
                 $display("The number of successfull transmissions %d",success);
