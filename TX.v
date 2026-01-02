@@ -1,177 +1,197 @@
-`timescale 1ns/1ps
 
-module Tx
-        (
-          input wire clk,          // Input clk
-          input wire wrt_en,       // Writing data into write data_in_reg
-          input wire [7:0]data_in, // Parallel data in
-          input wire Tx_en,        // Clk_en which starts transmission from baud rate generator
-          input wire rst,          // RESET 
-          output reg Tx,           // Serial Data out
-          output wire Tx_busy      // Busy line indication
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 02.01.2026 18:36:07
+// Design Name: 
+// Module Name: tx_module
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module tx_module(
+          input wire clk,                 // Input clk
+          input wire wrt_en,              // Writing data into write data_in_reg
+          input wire [7:0]data_in,        // Parallel data in
+          input wire baud_tick_Tx,        // Clk_en which starts transmission from baud rate generator
+          input wire MASTER_RST_BAR,      // RESET 
+          output reg Tx_serial,           // Serial Data out
+          output reg Tx_busy              // Busy line indication
           );
 
 reg [7:0]data_in_reg;    //  Data received from data input (8 bit data)
 
 
-reg [2:0]count;       // Transmitted data count 8 bit data
+reg [2:0]tr_bit_count;       // Transmitted data count 8 bit data
 
-parameter  IDLE  = 2'b00; // IDLE state
-parameter  START = 2'b01; // START state
-parameter  TRAM  = 2'b10; // TRANSMITTING state
-parameter  STOP  = 2'b11; // STOP state
+parameter  IDLE_ST  = 2'b00; // IDLE state
+parameter  START_ST = 2'b01; // START state
+parameter  TRAM_ST  = 2'b10; // TRANSMITTING state
+parameter  STOP_ST  = 2'b11; // STOP state
 
 reg [1:0] curr_state;  // Current state  
 
-reg [1:0] next_state;  // Next state
 
 
-assign Tx_busy=(curr_state!=IDLE);
 
 
 always @(posedge clk) 
 
     begin
-            if(rst==1'b1)
+            if(MASTER_RST_BAR==1'b0)
+
                 begin   
-                        next_state<=IDLE;                     
+                       curr_state<=IDLE_ST;     // Stay in the IDLE state   
+
+                       tr_bit_count<=0; // keep the bit count zero
+                      
+                        Tx_busy<=1'b0; //status needed here?
+
+                        Tx_serial<=1'b1; // Stay high
+                        
+                        data_in_reg<=8'd0;
+
+
                 end
                 
             else
                 begin
-                        curr_state<=next_state;                       
-                end
+                         
 
+                        Tx_busy<=(curr_state!=IDLE_ST); // Tx line is not busy when machine in IDLE state   
+                
+                
    
 
-            case(curr_state)
+                case(curr_state)
+                    
                 
-               
-                IDLE:
-                  begin
+                    IDLE_ST:
+                    begin
+                         
 
-                    if(wrt_en==1'b1)
-                        begin
-                            next_state<=START;    // NEXT STATE ASSIGNMENT
-
-                            data_in_reg<=data_in; // Storing the data to be transmitted
-
-                            count<=3'd0;          // count of transmitted bits
-
-                            Tx<=1'b1;             // Keeping the Tx line High
-                        end
-                    else 
-                            begin
-                                    next_state<=IDLE;
-
-                                    Tx<=1'b1;   // Default Tx line kept at high
-
-                                    count<=3'd0;
-
-                            end
-
-                 end       
-                START: 
-                     begin 
-                        
-                        if(Tx_en==1'b1) // Tx_en signal from baud rate generator
-
-                            begin
-                                        Tx<=1'b0;           //  Tx Line pulled down
-
-                                        next_state<=TRAM;   //  Assigning the next state as Transmit
-
-                            end      
-
-                        else 
-
-                            begin
-
-                                        next_state<=START; //  Stay in the start state until Tx_en signal comes
-                                        
-                                        Tx<=1'b0;          //  Tx line kept at low since currently at start state
-                                
-                            end
-                      
-                     end
-
-                TRAM: 
-                      begin
-
-                         if(count==3'd7) 
-                            begin   
-                                    next_state<=STOP;  // Next state : stop state
-                                    
-                                    Tx<=1'b0;          // Stop bits at the last place
-
-                            end
-                       else
-                           begin  
-                                
-                                if(Tx_en==1'b1)
+                                if ((wrt_en==1'b1) && (Tx_busy!=1)) // New data must be written only when the System is free and not when it is transmitting
                                     begin
+                                        curr_state<=START_ST;           // NEXT STATE ASSIGNMENT
 
-                                            count<=count+1;         // Increment the count
+                                        data_in_reg<=data_in;        // Storing the data to be transmitted
 
-                                            Tx<=data_in_reg[count]; // LSB out
+                                        tr_bit_count<=3'd0;          // count of transmitted bits
 
-                                           // data_in_reg<={1'b0,data_in_reg[7:1]};     // Shifting the data (right shift)
-
-                                            next_state <= TRAM; // Still transmitting
-
-                                           
-                                    
+                                        Tx_serial<=1'b1;             // Keeping the Tx line High
                                     end
                                 else 
-                                    begin                                     
+                                    begin
+                                        curr_state<=IDLE_ST; // Stay in the IDLE state
 
-                                            count<=count;        // Count kept same if no bit transfered
-                                            // This condition may not occur since the transmission is continuously done
-
-                                            next_state<=TRAM;    // Still in transmitting state
+                                        Tx_serial<=1'b1;         // Default Tx line kept at high
 
                                     end
-
-                           end
-
-                      end
-                STOP: 
-                    begin 
-
-                    Tx<=1'b1;          // Pulled to high
-
-                    if(Tx_en==1'b1)
-                        begin   
-
-                            next_state<=IDLE; // RESTART
-                            count<=0;
-
                             
-                        end
 
-                    else
-                        begin
+                    end       
+                    START_ST: 
+                        begin 
                             
-                           next_state<=STOP;   // After the last bit transmitted stop the transmission
-                           count<=0;
+                            if(baud_tick_Tx==1'b1) // Tx_en signal from baud rate generator
+
+                                begin
+                                            Tx_serial<=1'b0;       //  Tx Line pulled down
+
+                                            curr_state<=TRAM_ST;   //  Assigning the next state as Transmit
+
+                                end      
+
+                            else 
+
+                                begin
+
+                                            curr_state<=START_ST;     //  Stay in the start state until Tx_en signal comes
+                                            
+                                            Tx_serial<=1'b0;          //  Tx line kept at low since currently at start state
+                                    
+                                end
                         
                         end
-                    end
 
-                default: 
-                    begin   
+                    TRAM_ST: 
+                        begin
+                            if(baud_tick_Tx==1'b1)
+                                begin
 
-                        next_state<=IDLE;   //  By default stay in the IDLE state
- 
-                        Tx<=1'b1;           // Tx line kept at high
+                                    Tx_serial<=data_in_reg[0];              // LSB out
 
-                        count<=0;
+                                    data_in_reg<=data_in_reg>>1;            // right shift logical
 
-                    end
-            endcase
+                                    if(tr_bit_count==7) // not <= 7 since the UART must not wait till next tik to go to stop bit state
+                                        begin
+                                                curr_state<=STOP_ST;  // Next state : stop state
+                                                
+                                                tr_bit_count<=0;
+                                        end
+
+                                    else
+                                        begin   
+                                       
+                                                 tr_bit_count<=tr_bit_count+1;            // Increment the count
+
+                                                curr_state<=TRAM_ST; // Transmit the data
 
 
-        end
+                                                //Bit7 is transmitted
+                                                //Immediately moves to STOP_ST
+                                                //No extra baud delay
+                                                // suggestion from AI                                             
+                                        end
+                                end
+                      
+
+                        end
+
+                    STOP_ST: 
+                        begin 
+
+                                 
+
+                        if(baud_tick_Tx==1'b1)
+                            begin   
+                                
+                                Tx_serial<=1'b1;     // stop bit
+
+                                curr_state<=IDLE_ST; // RESTART
+                                
+                            end
+
+                        else
+                            begin
+                                    
+                                curr_state<=STOP_ST;   // wait till stop bit transmitted
+                                
+                            end
+                        end
+
+                    default: 
+                        begin   
+
+                            curr_state<=IDLE_ST;   //  By default stay in the IDLE state
+    
+                        end
+                endcase
+
+
+            end
+    end
 
 
 endmodule
