@@ -1,86 +1,36 @@
 
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: RAJKRISHNA T R
-// 
-// Create Date: 10.12.2025 14:23:42
-// Design Name: 
-// Module Name: Rx_module
-// Project Name: UART
-// Target Devices: 
-// Tool Versions: 
-// Description: 1. Unless reset the data_out register holds the last value it received
-//              2. Protection feature needed to be implemented at stop bit state and other states if required
-//              3. Implement clock gating ?? 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
-
-//-------------------------------------------------------------------------------------------------------------
-// Frequency 25MHz
-// Baud rate 115200
-//-------------------------------------------------------------------------------------------------------------
-
-
-
-//-------------------------------------------------------------------------------------------------------------
-
-// REF---> nandland,All about VLSI youtube channel
-
-// DATA FRAME 
-//[ [START bit low] [-- 8 bit data --] [STOP bit HIGH] ] Total 11 bit frame
-// No parity bit included
-
-//-------------------------------------------------------------------------------------------------------------
-
-module Rx_module(
-                        
-                    input wire clk,                    // CLOCK
+module rx_module
+        (           input wire clk,                    // CLOCK
                     input wire Rx_serial,              // RX_serial line 
                     input wire MASTER_RST_BAR,         // reset everything
-                    input wire rdy_clr,              // Clear the data ready flag
-              
+                    
+                    input wire baud_tick,               // from the baud rate generator
                     output reg[7:0] data_out,          // Data output
-                    output reg stop_bit_detc           // Stop bit detected
+                    output reg stop_bit_detc,          // Stop bit detected
+                    output reg data_rdy                // data ready indication flag
+                    
+                    
+        );
 
-                );
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-//-----------------------------------------------------------------------------------------------------------------------------------
-// Baud rate generator controll part (Inbuilt in Rx module) // 
-
-parameter factor = 1; //usually taken factor 16,current value will be changed later
-    
-parameter inputclk_freq=25000000; // unit Hz (25MHz clock as input)
-    
-parameter Baud_rate=115200;// unit bps
-
-localparam Rx_en_count = inputclk_freq/(Baud_rate*factor); // calculating the suitable size for the Rx_en_count
- 
-localparam  num_ff_Rx_en= $clog2(Rx_en_count+1); // number of flip flops needed
-
-
-
-
-//-----------------------------------------------------------------------------------------------------------------------------------
 
     reg [2:0] curr_state;            // Register to store the current state 
-    reg [7:0] data_frm;              // Data byte is stored in this temporary register
-    reg data_rdy;                    // Indicating the received data is ready to be read
-         
-    parameter BIT_INDEX_SIZE=3; // No of bits needed to represet the data byte
-    reg [num_ff_Rx_en-1:0]sample_count;           // Used to sample the data from at the middle of the bit 
-    reg [BIT_INDEX_SIZE-1:0] Bit_index_count;     // To count the index while receiving the data bits
-
+   
+    reg [7:0] data_frm;              // Data byte is stored in this temporary shift register
+   
    
 
-//-----------------------------------------------------------------------------------------------------------------------------------
+
+    parameter BIT_INDEX_SIZE=3;                   // No of bits needed to represet the data byte
+    parameter num_ff_sc = 4;                      // oversampling for 16 counts
+
+    reg [num_ff_sc-1:0]sample_count;                // Used to sample the data from at the middle of the bit 
+    reg [BIT_INDEX_SIZE-1:0] Bit_index_count;     // To count the index while receiving the data bits
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+
                 // STATE definitions //
 
 
@@ -90,255 +40,181 @@ localparam  num_ff_Rx_en= $clog2(Rx_en_count+1); // number of flip flops needed
     parameter STOP_BIT_ST = 3'b011;      // Stop bit is sampled and move to the end state 
     parameter END_ST = 3'b100;           // Move the data from the register to the output register and also enable the ready signal
 
-//----------------------------------------------------------------------------------------------------------------------------------
-                 // Continous assignments // 
+//--------------------------------------------------------------------------------------------------------------------------------------------------    
+    // clock synchronizer from AI suggestion, need to study
 
-//assign data_rdy_flag = (data_rdy) && (~(rdy_clr)); //  The flag that shows whether the data is ready to be read
-// Ready flag cleared by the data_rdy inbuilt method and externally cleared by the reader module using rdy_clr input
+    reg buf1_syn;
+    reg buf2_syn;
 
-// assign reset_rx_sample_count_flag = (reset_rx_sample_count) || (1'b0); // Default value is zero but it can b reset by the state machine
-
-//-----------------------------------------------------------------------------------------------------------------------------------
-
-    always@(posedge clk)  // Same clock for the rx, tx and baud rate generator
+    always@(posedge clk)
         begin
+            buf1_syn<=Rx_serial;
+            buf2_syn<=buf1_syn;
+        end
 
-            if(MASTER_RST_BAR==1'b0)
-                begin
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 
-                    curr_state<=IDLE_ST;         // Stay in the IDLE state
 
-                    data_out<=8'b00000000;       // Data out reg cleared
+// main block
 
-                    data_frm<=8'b00000000;       // Temporary reg cleared
+    always@(posedge clk)
 
-                    data_rdy<=1'b0;              // data ready flag cleared
+        begin
+                if(MASTER_RST_BAR==1'b0)
 
-                    Bit_index_count<=3'd0;       // Bit index count cleared
-
-                    sample_count<=0;             // Sampling count reset
-
-                    stop_bit_detc<=1'b0;            // stop bit detected
-            
-                end
-                    
-            else 
-                begin
-
-                  if(rdy_clr)
                         begin
-                            data_rdy<=1'b0;
-                        end          
-                   
-                   case(curr_state)
 
-                    // ----  IDLE state  ---- // 
+                            curr_state<=IDLE_ST;
 
-                        IDLE_ST:
+                            data_rdy<=1'b0;              // data ready flag auto cleared
 
-                            begin
-                                
-                          
-                                sample_count<=0;    // Clear the sample count
+                            Bit_index_count<=3'd0;       // Bit index count cleared
 
-                                Bit_index_count<=3'd0; //  clear the bit index count
-
-                             //   data_rdy<=1'b0;    // Clear the data ready flag
-
-                                stop_bit_detc<=1'b0;  //  Stop bit detected flag
-
-
-                                if(Rx_serial==1'b0)
-
-                                    begin
-
-                                        curr_state<=START_BIT_ST;  // Rx_serial line showing '0' indicates first start bit
-
-
-                                    end
-
-                                else
-
-                                    begin
-
-                                        curr_state<=IDLE_ST;  // Until start bit is detected the stay in the IDLE state
-
-                                    end
-
+                            sample_count<=0;             // Sampling count reset
                             
-                            end
-                    
-                    // ----  START_BIT_STATE  ---- //
+                            data_out<=8'd0;              // clear the data output
 
-                        START_BIT_ST:  // This state double checks if thhe Rx_serial is giving start bit or not,
-                                       // by checking it by sampling 
-                                       // and decide the next state based on the sampling result
+                        end
 
 
+                    else
                             begin
 
-                                
-                                // reset_rx_sample_count<=1'b0;
 
-                                if(sample_count>=((Rx_en_count-1)/2)-1)  // Middle sample signal to be sent from the baud rate generator
+                                case(curr_state)
+                                    
+
+                                        IDLE_ST:
                                             begin
-
-                                                if (Rx_serial==1'b0)   // Start bit is confirmed
-
-                                                    begin
-
-                                                        curr_state<=DATA_BYTE_ST;  // Go to data sampling state
-
-                                                        sample_count<=0;           // Reset the sample count
-
-                                                        // reset the sample count since start bit sampling done
-                                                        // reset signal might be to send to the baud rate generator
-                                                                                                                           
-                                                    end
-                                                else
-
-                                                    begin
-
-                                                        curr_state<=IDLE_ST;       
-
-                                                        // Rx_serial line is not pulled down so not start bit
-                                                        // Double checking failed so return back to idle state
-                                                        
-
-                                                    end             
-
-                                            end
-                                else 
-                                        begin
-
-                                                curr_state<=START_BIT_ST;
-
-                                                sample_count<=sample_count+1;
-
-                                                //increment the sampling count here since waiting
-                                       
-                                        end
-                                                                      
-                            end
-
-                        // ---- DATA_BYTE_STATE ---- //
-
-                     DATA_BYTE_ST:
-                                    begin
-
-                                        
-                                       
-                                        
-                                        if(sample_count>=((Rx_en_count-1)/2))
-
-                                            begin
-
-                                                data_frm[Bit_index_count]<=Rx_serial; // Read the serial line and 
-
-                                                // store data in the corresponding index position of the temporary register
-                                                sample_count<=0;  //  -- >   reset the sample count               
-                            
-                                                Bit_index_count<=Bit_index_count+1'b1; // reset the Bit index count after each bit sampled successfully
-                                            
-                                        
-                                                if(Bit_index_count<7)
-                                                    begin
-                                                        
-                                                        curr_state<=DATA_BYTE_ST;         
-                                                        // Data byte receiving in progress
+                                                    data_frm<=8'h00;  // clear the data frame temporary shift register;
                                                     
+                                                //    data_out<=8'h00;  // data out register is cleared 
 
-                                                    end
-                                                else 
-                                                    begin
-                                                               
-                                                        //Data byte receiving done
-                                                        Bit_index_count<=0;
-                                                                                            
-                                                        // Go to stop state
-                                                        curr_state<=STOP_BIT_ST;  
+                                                    Bit_index_count<=0;       // Bit index count cleared
+                                                    
+                                                    sample_count<=0;             // Sampling count reset
 
+                                                  //  data_rdy<=1'b0;             // auto cleared
 
-                                                    end 
+                                                    stop_bit_detc<=1'b0;        // auto cleared
+                                                    
+                                                    if(buf2_syn==1'b0)
+                                                        begin
+                                                            
+                                                            curr_state<=START_BIT_ST; // not using next_st var, need to check event scheduling in verilog
+                                                            sample_count<=0;          // reset the sample count
+                                                        end
+
+                                                    else 
+                                                        begin
+                                                            curr_state<=curr_state; // stay in the IDLE state 
+                                                        end                                               
                                             end
 
-                                        else 
-                                            
-                                            begin
-                                                    sample_count<=sample_count+1;
+                                             //   mid(start bit) + 16 ticks = mid(data bit 0) (from AI)
 
-                                                    curr_state<=DATA_BYTE_ST;
-
-                                            end
-
-                                    end
-
-                        // ---- STOP_BIT_STATE ---- //
-
-                    STOP_BIT_ST:
-                                    begin
-                                   
-                                       
-                                        if(sample_count>=((Rx_en_count-1)/2)-1) 
-
-                                            begin
-
-                                                        curr_state<=END_ST;     // go to end state
-
-                                                        sample_count<=0;        // sample count
-
-                                                        stop_bit_detc<=1'b1;    // stop bit detected
-                                                        
-                                                         data_out<=data_frm;   // Pass the data byte sampled to the data_out reg
-
-                                                         data_rdy<=1'b1;       // Enable the data ready flag
-
-
-                                                        
-
-                                             end
-
-                                            else 
+                                        START_BIT_ST:
 
                                                 begin
+                                                        if(baud_tick==1'b1)
+                                                            begin
+                                                                sample_count<=sample_count+1; 
+                                                                // when baud tick comes increment the sample_count
 
-                                                        stop_bit_detc<=1'b0;           //  Stop bit not detected
-                                                        
-                                                        curr_state<=STOP_BIT_ST;       // Stay until the stop bit is sampled 
+                                                                if(sample_count==7)  // zero to seven --> eight counts
+                                                                    begin
+                                                                        if(buf2_syn==1'b0)
+                                                                            begin
+                                                                          //      data_rdy<=1'b0;
+                                                                                // start bit detected
+                                                                                sample_count<=0;    // reset the sample count
+                                                                                // sampling of the start bit is done                                                                       
+                                                                                Bit_index_count<=0; // bit index count reset 
+                                                                                // going to start the bit index count for data
+                                                                                curr_state<=DATA_BYTE_ST;
+                                                                            end
+                                                                        else
+                                                                            begin
+                                                                                    curr_state<=IDLE_ST;
+                                                                            end
+                                                                            
+                                                                    end
 
-                                                        // FEATURE IF STOP BIT NOT DETECTED EVEN IF TIMER OVERFLOWS
-                                                        // Implement the protection 
-                                                        // Abort the process or something will do
+                                                                // else condition needed?
+                                                            end
 
-                                                        sample_count<=sample_count+1;  // Increment the sample counter
+                                                end
 
-                                                end           
+                                        DATA_BYTE_ST: 
+                                                begin
+                                                        if(baud_tick==1'b1)
+                                                            begin
+                                                                sample_count<=sample_count+1; // when baud tick comes increment the sample_count
+                                                                if(sample_count==15)
+                                                                
+                                                                 //after reseting the sample count the 15 count will sample the 
+                                                                // bit at the mid point of the next bit
+                                                                // this like-->
+                                                                // id(start bit) + 16 ticks = mid(data bit 0
 
-                                     end                  
+                                                                    begin
+                                                                        data_frm<={buf2_syn,data_frm[7:1]}; // sample the data and left shift the reg
+                                                                        // {rx bit, seven other bits}
+                                                                        Bit_index_count<=Bit_index_count+1;  // increment the bit count
+                                                                        sample_count<=0; // reset the sample count
+                                                                        if(Bit_index_count==3'd7)
+                                                                            begin
+                                                                                curr_state<=STOP_BIT_ST;
+                                                                            end
+                                                                        else
+                                                                            begin
+                                                                                curr_state<=DATA_BYTE_ST;
+                                                                            end
+                                                                    end
+                                                                // else condition needed ?
 
-                                
+                                                            end
+                                                end
+                                        STOP_BIT_ST:
+                                            begin
+                                                    if(baud_tick==1'b1)
+                                                        begin
+                                                            sample_count<=sample_count+1; // when baud tick comes increment the sample_count
+                                                            if(sample_count==15)
+                                                                begin
+                                                                    if(buf2_syn==1'b1)
+                                                                            begin
 
-                        // ---- END STATE ---- //
+                                                                                sample_count<=0; // reset the sample count
 
-                    END_ST:
-                                begin
+                                                                                curr_state<=IDLE_ST; // end of operation
 
-                                    curr_state<=IDLE_ST;  // Go to IDLE state 
+                                                                                data_out<=data_frm;   // data out 
 
-                                    data_frm<=8'b0;       // Data frame reset
+                                                                                data_rdy<=1'b1;  // indication for data availability
 
-                                end
-                    default: 
-                                begin
+                                                                                stop_bit_detc<=1'b1; // indication for simulation
 
-                                    curr_state<=IDLE_ST;  //  set Current state IDLE state by default
+                                                                            end
+                                                                    else
+                                                                        begin
+                                                                                curr_state<=STOP_BIT_ST; // wait till the stop bit is sampled
+                                                                        end
 
-                                end         
-                                    
-                   endcase
+                                                                end
+                                                        end
+                                                        // else statement needed  ?
 
-                end
+                                            end
+                                        default: 
+                                            begin
+                                                    curr_state<=IDLE_ST; // stay in the IDLE state by default
+                                            end
 
-        end
+                                    endcase
+                            end
+
+                                            
+            end            
 
 endmodule
