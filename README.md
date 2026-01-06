@@ -10,4 +10,5 @@ The design still needs a validation on the variables in UART_RX_MODULE which are
         2. sample_count_data
         3. sample_count_stop
 
-        
+
+Waveform pics branch contains some of the test output waveforms
