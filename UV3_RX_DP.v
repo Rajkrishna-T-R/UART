@@ -11,7 +11,7 @@ module UV3_RX_DP(
                 input wire rst_sample_count, // reset sample count
                 input wire clear_data,       // reset the data register
                 input wire rst_bit_index_count, // reset bit index count
-
+                input wire data_valid,          // data valid signal from the controller
                 output wire start_bit_edge,     // start bit edge
                 output reg [7:0]data_out,       // data_out 
                 output wire Rx_CP,          // Rx_synchronised for the controll path
