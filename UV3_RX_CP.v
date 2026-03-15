@@ -14,7 +14,7 @@ module UV3_RX_CP(
                     output reg inc_Scount,     // increment the sample count
                     output reg rst_sample_count,    // reset the sample count
                     output reg rst_bit_index_count, // reset signal for th bit index count
-                    output reg tick,      // baud tick signal to data path of Rx
+                    output reg tick      // baud tick signal to data path of Rx
                                           // data path that will sample the data
                                           // connected to the tick signal of the RX data path module
     );
@@ -155,11 +155,13 @@ module UV3_RX_CP(
                             end
 
                     STOP_ST:begin
-                                if((DS_count==3'd8) && (baud_tick_RX==1'b1) )
+                                if((DS_count==4'd15) && (baud_tick_RX==1'b1) )
                                     begin
-                                        Next_state=IDLE_ST;    
+                                // When stop bit received successfully the go to IDLE state     
+                                        Next_state=IDLE_ST;     
                                     end
                                 else 
+                                // Else stay in the STOP bit state
                                     begin
                                         Next_state=STOP_ST;
                                         
@@ -167,6 +169,7 @@ module UV3_RX_CP(
                             end
 
                     default: begin
+                        // stay in the IDLE state by default
                                 Next_state=IDLE_ST;
                              end          
             endcase 
@@ -176,13 +179,18 @@ module UV3_RX_CP(
 
 // Valdity check using the stop bit 
 always @(posedge clk or posedge RST)
+
     begin
-        if((Curr_state==STOP_ST)&&(DS_count==4'd8)&&(baud_tick_RX==1)&&(Rx_in==1))
+        if((Curr_state==STOP_ST)&&(DS_count==4'd15)&&(baud_tick_RX==1)&&(Rx_in==1))
             begin
+
+// data valid if the stop bit received in the stop bit stage at baud count = 15 
+// and the baud tick signal comes and the Rx_in currently carries bit = 1
                 data_valid<=1;
             end
         else 
             begin
+// Else the data is not valid
                 data_valid<=0;
             end
     end
