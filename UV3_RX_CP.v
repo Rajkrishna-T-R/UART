@@ -38,7 +38,7 @@ module UV3_RX_CP(
 
 // FSM
 // State update using sequential design
-    always @(posedge clk or posedge RST)
+    always @(posedge clk )
         begin
             if(RST==1'b1)
                 begin
@@ -194,8 +194,11 @@ module UV3_RX_CP(
             
         end
 
+
+
+
 // Valdity check using the stop bit 
-always @(posedge clk or posedge RST)
+always @(posedge clk )
 
     begin
     
@@ -205,18 +208,18 @@ always @(posedge clk or posedge RST)
             end
         else 
             begin
-               if((Curr_state==STOP_ST)&&(DS_count==4'd7)&&(baud_tick_RX==1)&&(Rx_in==1))
+               if((Curr_state==STOP_ST)&&(DS_count==4'd15)&&(baud_tick_RX==1)&&(Rx_in==1))
                     begin
         
-        // data valid if the stop bit received in the stop bit stage at baud count = 8 
+        // data valid if the stop bit received in the stop bit stage at baud count = 15
         // and the baud tick signal comes and the Rx_in currently carries bit = 1
                         data_valid<=1;
                     end
                     
-              else if ((Curr_state==STOP_ST)&&(DS_count==4'd7)&&(baud_tick_RX==1)&&(Rx_in==0))
+              else if ((Curr_state==STOP_ST)&&(DS_count==4'd15)&&(baud_tick_RX==1)&&(Rx_in==0))
                     begin
         
-        // data invalid if the stop not bit received in the stop bit stage at baud count = 8 
+        // data invalid if the stop not bit received in the stop bit stage at baud count = 15 
         // and the baud tick signal comes and the Rx_in currently carries bit = 0
                         data_valid<=0;
                     end
@@ -225,16 +228,15 @@ always @(posedge clk or posedge RST)
              end
     end
 
-always@(posedge clk or posedge RST)
+
+always@(posedge clk)
     if(RST==1 || clear_done==1)
         begin
-            done_Rec=0; // reset the data valid flag
+            done_Rec<=0; // reset the data valid flag
         end    
     else 
         begin
-            done_Rec=((data_valid==1)&&(Curr_state==STOP_ST) && (baud_tick_RX==1) && (DS_count==4'd15)); // When the data is received fully
-            // receival is done when the above conditions are satisfied 
-            // At DS count = 15 the receival process is complete the validity is separatly 
-            // calculated 
+            done_Rec<=((Curr_state==STOP_ST)&&(DS_count==4'd15)&&(baud_tick_RX==1)&&(Rx_in==1));
         end
+        
 endmodule
