@@ -16,7 +16,7 @@ module UV3_RX_BRG(
     reg [num_ff_rx-1:0]Rx_count; // Counter variable
     
 
-    always @(posedge clk or posedge RST)
+    always @(posedge clk )
         begin
             if(RST==1'b1 || (~start_baud))
                 begin
