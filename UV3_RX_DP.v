@@ -46,7 +46,7 @@
         
            // LOW Signal coming -->  Falling edge of the RX line as start bit
         
-            always@(posedge clk or posedge RST)
+            always@(posedge clk )
                 begin
                     if(RST==1)
                         begin
@@ -62,7 +62,7 @@
                 
                  
         // Synchronising 
-            always @(posedge clk or posedge RST) 
+            always @(posedge clk ) 
                     begin
                             if(RST==1'b1)
                                 begin   
@@ -85,7 +85,7 @@
          //--------------------------------------
           reg Rx_prev; // for edge detection
          
-          always@(posedge clk or posedge RST)
+          always@(posedge clk )
           
             begin
                 Rx_prev<=Rx_in;
@@ -100,7 +100,7 @@
           
            
             // Data path
-            always @(posedge clk or posedge RST)
+            always @(posedge clk )
                 begin
                      if(RST==1'b1)
                         begin  
@@ -147,7 +147,7 @@
                 
         
         // Oversampling 
-            always @(posedge clk or posedge RST)
+            always @(posedge clk )
                     begin
                         if((RST==1'b1)||(rst_sample_count==1'b1)) 
                         // reset the sample count when master reset or the reset signal from the controller comes
