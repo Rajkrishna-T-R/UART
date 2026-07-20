@@ -15,7 +15,7 @@ module UV3_TX_DP(
 reg [7:0] S_data_reg;
 
 //PISO register & counter 
-    always @(posedge clk or posedge RST)
+    always @(posedge clk)
         begin
             if(RST==1)
                 begin
