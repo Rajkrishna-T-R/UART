@@ -28,7 +28,7 @@ reg [1:0]Next_state;
 
 
 // State assignment
-always@(posedge clk or posedge RST)
+always@(posedge clk)
     begin
         if(RST==1)
             begin
@@ -48,7 +48,7 @@ reg latch_start; // for storing the start signal
 // This block ensures that the start bit duration wont get affected due to the baud tick allginment 
 //  mismatch due to the delay between the transmission of data bytes
 
-always@(posedge clk or posedge RST)
+always@(posedge clk )
     begin
         if(RST==1)
             begin
