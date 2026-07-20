@@ -26,12 +26,12 @@ Test case 2 -> 128 bytes are transmitted one after the other from each top modul
     One module starts sending from 0x00 to 0xFF and other module starts transmitting from 0xFF to 0x00.
 
 
+Test case 3 ->  Wrong start bit test 
+If start bit is not sampled correctly then the system will go back to IDLE state from START state
 
 
 Next tests to be done
 ---------------------
 
-1. Wrong start bit test
-
-2. Wrong stop bit test
+1. Wrong stop bit test
 
