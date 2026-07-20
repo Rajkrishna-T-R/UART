@@ -16,7 +16,7 @@ module UV3_TX_BRG(
     reg [num_ff_tx-1:0]Tx_count;
     
 
-    always @(posedge clk or posedge RST)
+    always @(posedge clk)
         begin
             if(RST==1'b1)
                 begin
