@@ -25,7 +25,7 @@ parameter clock_period=24;
 
 
 parameter Transmission_delay=500000;// 50us for this testbench given the time scale is => `timescale 1ns / 1ps
-
+parameter Bit_delay=50000;              // For testing the wrong start bit test
 
 reg clk;
 reg RST;
@@ -198,6 +198,26 @@ assign RX_serial1=TX_serial2;
         
         
         
+task Wrong_Start_Bit;
+    begin
+        // Idle
+        force RX_serial2 = 1'b1;
+        #(Transmission_delay);
+
+        // False start pulse
+        force RX_serial2 = 1'b0;
+        #(Bit_delay/30);
+
+        // Return high before the receiver samples at mid-bit
+        force RX_serial2 = 1'b1;
+        #(2*Transmission_delay);
+
+        release RX_serial2;
+    end
+endtask
+        
+        
+        
       
         initial
             begin
@@ -214,7 +234,7 @@ assign RX_serial1=TX_serial2;
      //-------------------------------------------------------------------------
      
              // Simultaneous sending   
-       /*     
+        /*  
                Trans_1(8'hAA); // Module 1 to Module 2
                 
                Trans_2(8'h55); // Module 2 to Module 1
@@ -240,8 +260,17 @@ assign RX_serial1=TX_serial2;
                 end
         */
         
+     // TEST 3   Wrong start bit//
+     
+    
+     
+   //Wrong_Start_Bit;
+   
         
         
+     // TEST 4 Wrong stop bit 
+     
+     
     
     
         
