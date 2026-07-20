@@ -28,3 +28,10 @@ Test case 2 -> 128 bytes are transmitted one after the other from each top modul
 
 
 
+Next tests to be done
+---------------------
+
+1. Wrong start bit test
+
+2. Wrong stop bit test
+
